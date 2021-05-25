@@ -128,6 +128,7 @@ def translation_main():
     load_dicom_filesExtern(path, resultpath)
     return True
 
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     ex = filedialogdemo()

@@ -4,6 +4,7 @@ from CEST.Utils import load_cest_directory, save_lorenzian, save_mtr_asym
 from CEST.Evaluation import calc_mtr_asym, cest_correction, calc_lorentzian
 from Utilitis import load_nii, resize_mask_array
 from Utilitis.overlay import overlay_dicom_map
+from CEST.WASSR import WASSR
 
 
 class CEST:
@@ -47,13 +48,15 @@ class CEST:
                 overlay_dicom_map(self.array[0, :, :, i], mtr_asym_img[:, :, i], [-1, 3], file)
 
     def calc_mtr_asym(self):
-        mtr_asym_curves, mtr_asym_img = calc_mtr_asym(self.CestCurveS, self.x_calcentires, self.mask['mask'], self.d_shift,
-                                                      self.f_shift, self.hStep)
-        self.mtr_asym_curves = mtr_asym_curves
-        self.mtr_asym_img = mtr_asym_img
+        if self.cf.MTRasym_bool:
+            mtr_asym_curves, mtr_asym_img = calc_mtr_asym(self.CestCurveS, self.x_calcentires, self.mask['mask'], self.d_shift,
+                                                          self.f_shift, self.hStep)
+            self.mtr_asym_curves = mtr_asym_curves
+            self.mtr_asym_img = mtr_asym_img
 
     def calc_lorenzian(self):
-        self.lorenzian = calc_lorentzian(self.CestCurveS, self.x_calcentires, self.mask['mask'], self.cf)
+        if self.cf.Lorenzian_bool:
+            self.lorenzian = calc_lorentzian(self.CestCurveS, self.x_calcentires, self.mask['mask'], self.cf)
 
     def save_results(self):
         if self.cf.MTRasym_bool:

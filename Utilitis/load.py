@@ -22,33 +22,20 @@ def split_dcm_List(dcm_list: list, sort=False):
             locations[d['SliceLocation'].value] = [f]
     split_dcmList = [locations[key] for key in locations.keys()]
     echo_list = [[] for i in range(len(split_dcmList[0]))]
-    for key in locations.keys():
+    keys = list(locations.keys())
+    keys.sort()
+    for key in keys:
+        echos = locations[key]
+        echos = sort_echo_list(echos)
         for idx in range(len(echo_list)):
-            echo_list[idx].append(locations[key][idx])
-    if sort:
-        return sort_echo_list(echo_list)
+            echo_list[idx].append(echos[idx])
     return echo_list
 
 
 def sort_echo_list(echos: list):
-    sort_echos, sort_echos_alternative = [], []
-    for _ in range(len(echos)):
-        sort_echos.append('')
-    for echo in echos:
-        sort_echo = []
-        for _ in echo:
-            sort_echo.append('')
-        for f in echo:
-            d = pydicom.dcmread(f)
-            try:
-                sort_echo[int(d.InstanceNumber)-1] = f
-            except IndexError:
-                sort_echo[0] = f
-        sort_echos[int(d.AcquisitionNumber) - 1] = sort_echo
-        sort_echos_alternative.append((sort_echo, d.SeriesNumber))
-    if '' in sort_echos:
-        sort_echos = sorted(sort_echos_alternative, key=lambda tup: tup[1])
-        sort_echos = [tup[0] for tup in sort_echos]
+    InstanceNumbers = [pydicom.dcmread(file).InstanceNumber for file in echos]
+    order = np.argsort(InstanceNumbers)
+    sort_echos = [echos[o] for o in order]
     return sort_echos
 
 

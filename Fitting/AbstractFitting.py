@@ -1,8 +1,8 @@
 from Utilitis import overlay_dicom_map, load_nii, save_nii, resize_mask_array
 import numpy as np
-from scipy.optimize import curve_fit, Bounds
+from scipy.optimize import curve_fit
 from abc import ABC, abstractmethod
-import csv
+import csv, os
 from multiprocessing import Pool
 
 
@@ -77,7 +77,7 @@ class AbstractFitting(ABC):
         """
         self.fit(multiprocessing, x)
         self.overlay_map()
-        self.save_results()
+        return self.save_results()
 
     def fit(self, multiprocessing=False, x=None):
         """
@@ -107,10 +107,10 @@ class AbstractFitting(ABC):
         if multiprocessing:
             with Pool() as pool:
                 idxs, map, r_square = zip(*pool.map(fit_slice_process,
-                                            [(fit_map[:, :, i], r_squares[:, :, i], self.array[:, :, :, i],
-                                              mask[:, :, i],
-                                              x, self.fit_function, self.bounds, i) for i in
-                                             range(self.array.shape[-1])]))
+                                                    [(fit_map[:, :, i], r_squares[:, :, i], self.array[:, :, :, i],
+                                                      mask[:, :, i],
+                                                      x, self.fit_function, self.bounds, i) for i in
+                                                     range(self.array.shape[-1])]))
                 for i in range(len(idxs)):
                     fit_map[:, :, idxs[i]], r_squares[:, :, idxs[i]] = map[idxs[i]], r_square[idxs[i]]
         else:
@@ -135,8 +135,12 @@ class AbstractFitting(ABC):
         fit_map = self.fit_map if fit_map is None else fit_map
         clim = np.nanmax(fit_map)
         for i in range(fit_map.shape[-1]):
+            file = self.folder + r'\map_dyn_{:03d}.png'.format(i)
+            try:
+                os.remove(file)
+            except FileNotFoundError:
+                pass
             if np.nanmax(fit_map[:, :, i]) > 0:
-                file = self.folder + r'\map_dyn_{:03d}'.format(i)
                 overlay_dicom_map(self.array[0, :, :, i], fit_map[:, :, i], [0, clim], file)
 
     def save_results(self):
@@ -153,12 +157,14 @@ class AbstractFitting(ABC):
         results = {}
         for i in range(1, int(self.mask['mask'].max()) + 1):
             m = self.mask['mask'].copy()
-            m[m != i] = 0
-            m[m == i] = 1
+            m = np.where(m == i, 1, 0)
+
             fit_map = np.multiply(self.fit_map, m)
             fit_map = np.where(fit_map != 0.0, fit_map, np.nan)
+
             r_squares = np.multiply(self.r_squares, m)
             r_squares = np.where(r_squares != 0, r_squares, np.nan)
+
             results[str(i)] = ['%.2f' % np.nanmean(fit_map), '%.2f' % np.nanstd(fit_map),
                                '%.2f' % np.nanmin(fit_map), '%.2f' % np.nanmax(fit_map),
                                '%.2f' % np.sum(m), '%.2f' % np.nanmean(r_squares)]
@@ -171,15 +177,13 @@ class AbstractFitting(ABC):
         return results
 
 
-def fit_slice_process(input):
-    input = list(input)
-    print("Slice {} wird berechnet :)".format(input[7]))
-    input[0], input[1] = fit_slice(input[2], input[3], input[4], input[5], input[6], min_r_squared=0.7)
-    print("Slice {} wurde fertig berechnet!".format(input[7]))
-    return input[7], input[0], input[1]
+def fit_slice_process(data):
+    data = list(data)
+    data[0], data[1] = fit_slice(data[2], data[3], data[4], data[5], data[6], min_r_squared=0.1)
+    return data[7], data[0], data[1]
 
 
-def fit_slice(d_slice, mask, x, fit, bounds, min_r_squared=0.7):
+def fit_slice(d_slice, mask, x, fit, bounds, min_r_squared=0.6):
     """
     Fits one slice
 
@@ -202,32 +206,28 @@ def fit_slice(d_slice, mask, x, fit, bounds, min_r_squared=0.7):
     if mask.max() == 0:
         return fit_map, r_squares
 
-    for row in range(d_slice.shape[1]):
-        for column in range(d_slice.shape[2]):
-            if mask[row, column] == 0:
-                continue
-            y = d_slice[:, row, column]
-            y.sort()
-            y = y[::-1]
-            try:
-                y = y / y.max()
-            except ValueError:
-                continue
-            try:
-                if bounds is not None:
-                    param, param_cov = curve_fit(fit, x, y, bounds=bounds)
-                else:
-                    param, param_cov = curve_fit(fit, x, y)
-            except RuntimeError:
-                continue
-            except ValueError:
-                continue
-            residuals = y - fit(np.array(x), param[0], param[1], param[2])
-            ss_res = np.sum(residuals ** 2)
-            ss_tot = np.sum((y - np.mean(y)) ** 2)
-            r_squared = 1 - (ss_res / ss_tot)
-            if r_squared < min_r_squared:
-                continue
-            fit_map[row, column] = param[1]
-            r_squares[row, column] = r_squared
+    args = np.argwhere(mask != 0)
+    for row, column in args:
+        y = d_slice[:, row, column]
+        try:
+            y = y / y.max()
+        except ValueError:
+            continue
+        try:
+            if bounds is not None:
+                param, param_cov = curve_fit(fit, x, y, bounds=bounds, xtol=0.5)
+            else:
+                param, param_cov = curve_fit(fit, x, y, xtol=0.5)
+        except RuntimeError:
+            continue
+        except ValueError:
+            continue
+        residuals = y - fit(np.array(x), param[0], param[1], param[2])
+        ss_res = np.sum(residuals ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        r_squared = 1 - (ss_res / ss_tot)
+        if r_squared < min_r_squared:
+            continue
+        fit_map[row, column] = param[1]
+        r_squares[row, column] = r_squared
     return fit_map, r_squares

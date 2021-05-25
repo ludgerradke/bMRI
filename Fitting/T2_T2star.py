@@ -56,7 +56,7 @@ class T2_T2star(AbstractFitting):
                 dcm_files = [get_dcm_list(echo) for echo in echos]
                 dcm_files = [item for sublist in dcm_files for item in sublist]
             self.get_tes(dcm_files)
-            dcm_files = split_dcm_List(dcm_files)
+            dcm_files = split_dcm_List(dcm_files, True)
         # self.array == echos, z, x, y --> echos, x, y, z
         self.array = np.array([get_dcm_array(dcm) for dcm in dcm_files]).transpose(0, 3, 2, 1)
 
