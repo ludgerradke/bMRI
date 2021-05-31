@@ -1,4 +1,6 @@
 Auswertungen/*
 !Auswertungen/Example.py
-
+*\__pycache__\*
 venv
+*/__pycache__/*
+*.pyc

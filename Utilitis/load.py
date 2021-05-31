@@ -33,8 +33,20 @@ def split_dcm_List(dcm_list: list, sort=False):
 
 
 def sort_echo_list(echos: list):
-    InstanceNumbers = [pydicom.dcmread(file).InstanceNumber for file in echos]
-    order = np.argsort(InstanceNumbers)
+    InstanceNumbers = [int(pydicom.dcmread(file).InstanceNumber) for file in echos]
+    SeriesNumbers = [int(pydicom.dcmread(file).SeriesNumber) for file in echos]
+
+    # remove duplicates
+    InstanceNumbers = list(dict.fromkeys(InstanceNumbers))
+    SeriesNumbers = list(dict.fromkeys(SeriesNumbers))
+    if len(InstanceNumbers) > 1:
+        order = np.argsort(InstanceNumbers)
+    elif len(SeriesNumbers) > 1:
+        order = np.argsort(SeriesNumbers)
+    else:
+        print("Warning: Sorting not possible!")
+        return echos
+
     sort_echos = [echos[o] for o in order]
     return sort_echos
 
@@ -44,10 +56,10 @@ def get_dcm_array(data: list):
     for d in data:
         img = pydicom.dcmread(d).pixel_array
         info = pydicom.dcmread(d)
-        #try:
-        #    img = img * info.RescaleSlope + info.RescaleIntercept
-        #except AttributeError:
-         #   pass
+        try:
+            img = img * info.RescaleSlope + info.RescaleIntercept
+        except AttributeError:
+            pass
         array.append(img)
     array = array[::-1]
     return np.array(array)
@@ -55,4 +67,4 @@ def get_dcm_array(data: list):
 
 def load_nii(file):
     nimg = nib.load(file)
-    return nimg.get_fdata(), nimg.affine, nimg.header
+    return nimg.get_fdata()[:, :, ::-1], nimg.affine, nimg.header
