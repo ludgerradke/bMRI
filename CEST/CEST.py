@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 from CEST.Utils import load_cest_directory, save_lorenzian, save_mtr_asym
 from CEST.Evaluation import calc_mtr_asym, cest_correction, calc_lorentzian
@@ -41,11 +42,31 @@ class CEST:
         self.save_results()
 
     def overlay_map(self, mtr_asym_img=None):
-        mtr_asym_img = self.mtr_asym_img if mtr_asym_img is None else mtr_asym_img
-        for i in range(mtr_asym_img.shape[-1]):
-            if np.nanmax(mtr_asym_img[:, :, i]) > 0:
-                file = self.cest_folder + r'\map_dyn_{:03d}'.format(i + 1)
-                overlay_dicom_map(self.array[0, :, :, i], mtr_asym_img[:, :, i], [-1, 3], file)
+        if self.cf.MTRasym_bool or mtr_asym_img is not None:
+            mtr_asym_img = self.mtr_asym_img if mtr_asym_img is None else mtr_asym_img
+            min_ = int(np.quantile(mtr_asym_img[mtr_asym_img != 0], 0.15))
+            max_ = int(np.quantile(mtr_asym_img[mtr_asym_img != 0], 0.85)) + 1
+            for i in range(mtr_asym_img.shape[-1]):
+                file = self.cest_folder + r'\mtr_asym_map_dyn_{:03d}'.format(i + 1)
+                try:
+                    os.remove(file)
+                except FileNotFoundError:
+                    pass
+                if np.nanmax(mtr_asym_img[:, :, i]) > 0:
+                    overlay_dicom_map(self.array[0, :, :, i], mtr_asym_img[:, :, i], [min_, max_], file)
+        if self.cf.Lorenzian_bool:
+            lorenzian_img = self.lorenzian['OH_a']
+            min_ = int(np.quantile(lorenzian_img[lorenzian_img != 0], 0.15)*10)/10
+            max_ = (int(np.quantile(lorenzian_img[lorenzian_img != 0], 0.85)*10) + 1)/10
+            for i in range(lorenzian_img.shape[-1]):
+                file = self.cest_folder + r'\lorenzian_map_dyn_{:03d}'.format(i + 1)
+                try:
+                    os.remove(file)
+                except FileNotFoundError:
+                    pass
+                if np.nanmax(lorenzian_img[:, :, i]) > 0:
+
+                    overlay_dicom_map(self.array[0, :, :, i], lorenzian_img[:, :, i], [min_, max_], file)
 
     def calc_mtr_asym(self):
         if self.cf.MTRasym_bool:

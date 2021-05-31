@@ -14,6 +14,8 @@ def calc_lorentzian(CestCurveS, x_calcentires, mask, config):
                     params = calc_lorenzian_pixel(CestCurveS[i, j, k, :], x_calcentires, config.Lorenzian['MT_f'],
                                                   config.Lorenzian['NOE1_f'], config.Lorenzian['NOE2_f'],
                                                   config.Lorenzian['OH_f'], config.Lorenzian['NH_f'])
+                    if params is None:
+                        continue
                     dic = {
                         'OH_a': params[3],
                         'OH_w': params[4],
@@ -34,9 +36,12 @@ def calc_lorentzian(CestCurveS, x_calcentires, mask, config):
 def calc_lorenzian_pixel(values, x_calcentires, MT_f, NOE1_f, NOE2_f, OH_f, NH_f):
     # wassr_offset, da die Z-Spektren vorher korrigiert wurden
     fit = lorenz_like_matlab(wassr_offset=0, MT_f=MT_f, NOE1_f=NOE1_f, NOE2_f=NOE2_f, OH_f=OH_f, NH_f=NH_f)
-    param, param_cov = curve_fit(fit, x_calcentires, values, bounds=([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    try:
+        param, param_cov = curve_fit(fit, x_calcentires, values, bounds=([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                                                                      [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
                                                                       10]))
+    except RuntimeError:
+        param = None
 
     return param
 
