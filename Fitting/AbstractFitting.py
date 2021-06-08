@@ -183,7 +183,7 @@ def fit_slice_process(data):
     return data[7], data[0], data[1]
 
 
-def fit_slice(d_slice, mask, x, fit, bounds, min_r_squared=0.6):
+def fit_slice(d_slice, mask, x, fit, bounds, min_r_squared=0):
     """
     Fits one slice
 
@@ -215,9 +215,9 @@ def fit_slice(d_slice, mask, x, fit, bounds, min_r_squared=0.6):
             continue
         try:
             if bounds is not None:
-                param, param_cov = curve_fit(fit, x, y, bounds=bounds, xtol=0.5)
+                param, param_cov = curve_fit(fit, x, y, bounds=bounds, xtol=0.1, maxfev=400)
             else:
-                param, param_cov = curve_fit(fit, x, y, xtol=0.5)
+                param, param_cov = curve_fit(fit, x, y, xtol=0.1)
         except RuntimeError:
             continue
         except ValueError:
