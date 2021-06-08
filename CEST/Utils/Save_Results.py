@@ -1,10 +1,12 @@
 from Utilitis import save_nii, get_nan_fitmap
 import numpy as np
 import csv
+import scipy.io
 
 
 def save_mtr_asym(self):
     save_nii(self.mtr_asym_img, self.mask['affine'], self.mask['header'], self.cest_folder + '/Map.nii.gz')
+    scipy.io.savemat(self.cest_folder + '/Map.mat', {'map': self.mtr_asym_img, 'dicom': self.array})
     results = {}
     for i in range(1, int(self.mask['mask'].max()) + 1):
         m, fit_map = get_nan_fitmap(self.mtr_asym_img.copy(), self.mask['mask'].copy(), i)
@@ -23,6 +25,7 @@ def save_lorenzian(self):
     for key in self.lorenzian.keys():
         save_nii(self.lorenzian[key], self.mask['affine'], self.mask['header'],
                  self.cest_folder + '/{}_Map.nii.gz'.format(key))
+        scipy.io.savemat(self.cest_folder + '/Lorenzian.mat', self.lorenzian)
         results = {}
         for i in range(1, int(self.mask['mask'].max()) + 1):
             m, fit_map = get_nan_fitmap(self.lorenzian[key].copy(), self.mask['mask'].copy(), i)

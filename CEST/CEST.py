@@ -41,11 +41,11 @@ class CEST:
         self.overlay_map()
         self.save_results()
 
-    def overlay_map(self, mtr_asym_img=None):
+    def overlay_map(self, mtr_asym_img=None, lorenzian_img=None):
         if self.cf.MTRasym_bool or mtr_asym_img is not None:
             mtr_asym_img = self.mtr_asym_img if mtr_asym_img is None else mtr_asym_img
-            min_ = int(np.quantile(mtr_asym_img[mtr_asym_img != 0], 0.15))
-            max_ = int(np.quantile(mtr_asym_img[mtr_asym_img != 0], 0.85)) + 1
+            min_ = 0 #int(np.quantile(mtr_asym_img[mtr_asym_img != 0], 0.15))
+            max_ = 3 #int(np.quantile(mtr_asym_img[mtr_asym_img != 0], 0.85)) + 1
             for i in range(mtr_asym_img.shape[-1]):
                 file = self.cest_folder + r'\mtr_asym_map_dyn_{:03d}'.format(i + 1)
                 try:
@@ -55,7 +55,7 @@ class CEST:
                 if np.nanmax(mtr_asym_img[:, :, i]) > 0:
                     overlay_dicom_map(self.array[0, :, :, i], mtr_asym_img[:, :, i], [min_, max_], file)
         if self.cf.Lorenzian_bool:
-            lorenzian_img = self.lorenzian['OH_a']
+            lorenzian_img = self.lorenzian['OH_a'] if lorenzian_img is None else lorenzian_img
             min_ = int(np.quantile(lorenzian_img[lorenzian_img != 0], 0.15)*10)/10
             max_ = (int(np.quantile(lorenzian_img[lorenzian_img != 0], 0.85)*10) + 1)/10
             for i in range(lorenzian_img.shape[-1]):
@@ -91,11 +91,15 @@ class CEST:
         self.mask['mask'], self.array = resize_mask_array(self.mask['mask'], self.array)
         self.offset_map, self.mask['mask'] = wassr.calculate(self.wassr_folder, self.mask['mask'])
 
-    def cest_correction(self):
+    def load_cest_array(self):
         try:
             cest_array = self.cest_array
         except AttributeError:
             cest_array, self.array = load_cest_directory(self.cest_folder + '/')
+        return cest_array
+
+    def cest_correction(self):
+        cest_array = self.load_cest_array()
         x_calcentires = np.arange(-self.range, self.range, self.hStep)
         x_calcentires = np.append(x_calcentires, self.range)
         dyn = cest_array.shape[0]
