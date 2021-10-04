@@ -50,7 +50,7 @@ class MSA(Algorithm):
 
         OF = self.msa(x_interp_neu, y_interp_neu, x_interp_mirror, y_interp)
 
-        if OF > self.maxShift:
+        if abs(OF) > self.maxShift:
             return -100
         return OF
 

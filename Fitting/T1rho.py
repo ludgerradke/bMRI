@@ -9,13 +9,20 @@ def fit_(x, S0, t1rho, offset):
 
 
 def get_short_TR_fit(TR, T1, alpha):
-        def short_TR_fit(x, S0, t1rho, offset):
+    def short_TR_fit(x, S0, t1rho, offset):
+        counter = (np.exp(-x / t1rho)) * (1 - np.exp(-(TR - x) / T1)) * np.sin(alpha)
+        denominator = 1 - np.exp(-x / t1rho) * np.exp(-(TR - x) / T1) * np.cos(alpha)
 
-            counter = (np.exp(-x / t1rho)) * (1 - np.exp(-(TR - x) / T1)) * np.sin(alpha)
-            denominator = 1-np.exp(-x/t1rho)*np.exp(-(TR - x)/T1)*np.cos(alpha)
+        return S0 * counter / denominator + offset
 
-            return S0 * counter / denominator + offset
-        return short_TR_fit
+    return short_TR_fit
+
+
+def get_short_TR_fit_with_T1map(TR, alpha):
+    def fit_with_T1map(T1):
+        return get_short_TR_fit(TR, T1, alpha)
+
+    return fit_with_T1map
 
 
 class T1rho(AbstractFitting):
@@ -31,16 +38,20 @@ class T1rho(AbstractFitting):
         config (dict): Dict in which the essential information is required for the fitting function
             with short TR times.
     """
-    def __init__(self, dim, folder, bounds=None, config: dict = None):
 
+    def __init__(self, dim, folder, bounds=None, config: dict = None):
+        config_fit = None
         if config is not None:
             if all(i in ["T1", "TR", "alpha"] for i in config.keys()):
                 fit = get_short_TR_fit(config["TR"], config["T1"], config["alpha"])
+            elif all(i in ["TR", "alpha", "T1map"] for i in config.keys()):
+                fit = get_short_TR_fit_with_T1map(config["TR"], config["alpha"])
+                config_fit = config["T1map"]
             else:
                 raise UserWarning
         else:
             fit = fit_
-        super(T1rho, self).__init__(dim, folder, fit, bounds)
+        super(T1rho, self).__init__(dim, folder, fit, bounds, config_fit=config_fit)
         self.load()
 
     def load(self):

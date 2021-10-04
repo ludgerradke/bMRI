@@ -27,13 +27,14 @@ if __name__ == '__main__':
             mask, affine, header = load_nii(masks_path[0])
             mask = mask - 2
             mask = np.where(mask < 1, 0, mask)
-            mask = mask[:, :, ::-1]
+            # mask = mask[:, :, ::-1]
             mask[:, :, :2] = 0
             mask[:, :, -2:] = 0
 
-            t2 = T2_T2star(dim=3, folder=T2_folder[0], bounds=([0.8, 20, -0.1], [1.5, 90, 0.1]))
+            t2 = T2_T2star(dim=3, folder=T2_folder[0], bounds=([1, 20, -0.2], [4, 80, 0.2]))
             t2.set_mask(mask, affine, header)
             t2_res = t2.run(multiprocessing=True)
+            print(t2_res)
             res.append([os.path.basename(proband), mode, '1'] + t2_res['1'])
             res.append([os.path.basename(proband), mode, '2'] + t2_res['2'])
 

@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-from CEST.Utils import load_cest_directory, save_lorenzian, save_mtr_asym
+from CEST.Utils import load_cest_directory, save_lorenzian, save_mtr_asym, get_ppms
 from CEST.Evaluation import calc_mtr_asym, cest_correction, calc_lorentzian
 from Utilitis import load_nii, resize_mask_array
 from Utilitis.overlay import overlay_dicom_map
@@ -9,7 +9,7 @@ from CEST.WASSR import WASSR
 
 
 class CEST:
-    def __init__(self, config, cest_folder, wassr_folder):
+    def __init__(self, config, cest_folder, wassr_folder, dyn_wassr=None, dyn_cest=None):
         self.cf = config
         self.hStep = config.itp_step
         self.max_offset = config.cest_offset
@@ -21,6 +21,8 @@ class CEST:
         self.CestCurveS = None
         self.x_calcentires = None
         self.interpolation = config.interpolation
+        self.dyn_wassr = dyn_wassr
+        self.dyn_cest = dyn_cest
 
     def load_mask(self):
         mask, affine, header = load_nii(self.wassr_folder + r'\mask.nii.gz')
@@ -87,7 +89,7 @@ class CEST:
 
     def wassr_correction(self):
         self.cest_array, self.array = load_cest_directory(self.cest_folder + '/')
-        wassr = WASSR(self.cf, algoritm='msa')
+        wassr = WASSR(self.cf, algoritm='msa', dyn=self.dyn_wassr)
         self.mask['mask'], self.array = resize_mask_array(self.mask['mask'], self.array)
         self.offset_map, self.mask['mask'] = wassr.calculate(self.wassr_folder, self.mask['mask'])
 
@@ -104,8 +106,11 @@ class CEST:
         x_calcentires = np.append(x_calcentires, self.range)
         dyn = cest_array.shape[0]
         step_size = (self.max_offset * 2) / (dyn - 1)
-        x = np.arange(-self.max_offset, self.max_offset, step_size).transpose()
-        x = np.append(x, self.max_offset)
+        if self.dyn_cest is None:
+            x = np.arange(-self.max_offset, self.max_offset, step_size).transpose()
+            x = np.append(x, self.max_offset)
+        else:
+            x = get_ppms(offset = self.cf.cest_offset, dyn = self.dyn_cest, directory=self.cest_folder)
 
         x_itp = np.arange(-self.max_offset, self.max_offset, self.hStep).transpose()
         x_itp = np.append(x_itp, self.max_offset)
@@ -113,4 +118,4 @@ class CEST:
         mask = self.mask['mask']
         self.CestCurveS, self.x_calcentires = cest_correction(cest_array, x_calcentires, x, x_itp, mask,
                                                               self.offset_map, self.interpolation, self.cf.cest_range)
-
+        b = 2

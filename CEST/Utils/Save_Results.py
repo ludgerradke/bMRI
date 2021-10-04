@@ -25,6 +25,7 @@ def save_lorenzian(self):
     for key in self.lorenzian.keys():
         save_nii(self.lorenzian[key], self.mask['affine'], self.mask['header'],
                  self.cest_folder + '/{}_Map.nii.gz'.format(key))
+
         scipy.io.savemat(self.cest_folder + '/Lorenzian.mat', self.lorenzian)
         results = {}
         for i in range(1, int(self.mask['mask'].max()) + 1):
@@ -38,3 +39,8 @@ def save_lorenzian(self):
             for key, value in results.items():
                 value = [v.replace('.', ',') for v in value]
                 writer.writerow([key] + value)
+
+    def change_lorenzian_to_matlab(lorenzian: dict):
+        for key in lorenzian.keys():
+            lorenzian[key] = (lorenzian[key]*100).astype(np.int8)
+        return lorenzian

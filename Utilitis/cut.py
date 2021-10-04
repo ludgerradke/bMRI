@@ -1,12 +1,14 @@
 from scipy.ndimage import zoom
-
+import numpy as np
+from skimage.transform import resize, rescale
 
 def resize_mask_array(mask, array):
     mask, array = cut_mask_and_array(mask, array)
     if mask.shape[-2] != array.shape[-2]:
         x, y = array.shape[-3] / mask.shape[-2], array.shape[-3] / mask.shape[-2]
         z = 1
-        mask = zoom(mask, (x, y, z), mode='nearest')
+        mask = np.around(resize(mask, [_ * __ for _, __ in zip([x, y, z], mask.shape)], order=0))
+        #mask = zoom(mask, (x, y, z), mode='nearest')
 
     return mask.round(), array
 

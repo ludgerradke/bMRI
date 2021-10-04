@@ -8,6 +8,7 @@ from glob import glob
 def inversion_recovery_t1(x, S0, t1, offset):
     return S0 * (1 - np.exp(-x / t1)) + offset
 
+
 class T1(AbstractFitting):
     """
     Class for the calculation of T1 times

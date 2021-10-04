@@ -6,7 +6,7 @@ class CESTConfig:
                  MTRasym_bool: bool = True,
                  f_shift: float = 1.0,
                  d_shift: float = 1.0,
-                 Lorenzian_bool: bool = True,
+                 Lorenzian_bool: bool = False,
                  Lorenzian: dict = None,
                  ):
 

@@ -4,6 +4,7 @@ import shutil
 import sys
 from PyQt5.QtWidgets import QFileDialog
 import pydicom
+from glob import glob
 from PyQt5.QtWidgets import *
 
 
@@ -122,9 +123,10 @@ def translation_main():
     path = QFileDialog.getExistingDirectory()
     if path == "":
         return False
+
     resultpath = path + '_translated'
     if not os.path.isdir(resultpath):
-        os.mkdir(resultpath)
+            os.mkdir(resultpath)
     load_dicom_filesExtern(path, resultpath)
     return True
 

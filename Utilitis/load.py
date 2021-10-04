@@ -6,6 +6,8 @@ import nibabel as nib
 
 def get_dcm_list(folder: str):
     dcm_list = sorted(glob(folder + '*.dcm'))
+    if len(dcm_list) == 0:
+        return sorted(glob(folder + '\*'))
     return dcm_list
 
 

@@ -24,7 +24,7 @@ class AbstractFitting(ABC):
             Note: The bounds are handed in according to the scipy.optimize.curve_fit convention.
     """
 
-    def __init__(self, dim, folder, fit_function, bounds=None):
+    def __init__(self, dim, folder, fit_function, bounds=None, config_fit=None):
         self.dim = dim
         self.folder = folder
         self.bounds = bounds
@@ -35,6 +35,7 @@ class AbstractFitting(ABC):
         self.array = None
         self.fit_function = fit_function
         self.sort = False
+        self.config_fit = config_fit
 
     @abstractmethod
     def load(self):
@@ -70,6 +71,9 @@ class AbstractFitting(ABC):
             'affine': affine,
             'header': header
         }
+
+    def get_map(self):
+        return self.fit_map
 
     def run(self, multiprocessing=False, x=None):
         """
@@ -109,14 +113,16 @@ class AbstractFitting(ABC):
                 idxs, map, r_square = zip(*pool.map(fit_slice_process,
                                                     [(fit_map[:, :, i], r_squares[:, :, i], self.array[:, :, :, i],
                                                       mask[:, :, i],
-                                                      x, self.fit_function, self.bounds, i) for i in
+                                                      x, self.fit_function, self.bounds, i, self.config_fit[:, :, i] if
+                                                      self.config_fit is not None else None) for i in
                                                      range(self.array.shape[-1])]))
                 for i in range(len(idxs)):
                     fit_map[:, :, idxs[i]], r_squares[:, :, idxs[i]] = map[idxs[i]], r_square[idxs[i]]
         else:
             for i in range(self.array.shape[-1]):
+                config_fit = None if self.config_fit is None else self.config_fit[:, :, i]
                 fit_map[:, :, i], r_squares[:, :, i] = fit_slice(self.array[:, :, :, i], mask[:, :, i],
-                                                                 x, self.fit_function, self.bounds)
+                                                                 x, self.fit_function, self.bounds, config_fit)
 
         self.fit_map = fit_map
         self.r_squares = r_squares
@@ -179,11 +185,13 @@ class AbstractFitting(ABC):
 
 def fit_slice_process(data):
     data = list(data)
-    data[0], data[1] = fit_slice(data[2], data[3], data[4], data[5], data[6], min_r_squared=0.1)
+    data[0], data[1] = fit_slice(data[2], data[3], data[4], data[5], data[6], config_fit=data[8], min_r_squared=0.1)
     return data[7], data[0], data[1]
 
 
-def fit_slice(d_slice, mask, x, fit, bounds, min_r_squared=0):
+def fit_slice(d_slice, mask, x, fit, bounds, config_fit = None, min_r_squared=0):
+    bounds_ = ([bounds[0][0], 0.9 * bounds[0][1], bounds[0][2]],
+                     [bounds[1][0], 1.1 * bounds[1][1], bounds[1][2]])
     """
     Fits one slice
 
@@ -214,19 +222,25 @@ def fit_slice(d_slice, mask, x, fit, bounds, min_r_squared=0):
         except ValueError:
             continue
         try:
-            if bounds is not None:
-                param, param_cov = curve_fit(fit, x, y, bounds=bounds, xtol=0.1, maxfev=400)
+            if config_fit is not None:
+                fit_ = fit((config_fit[row, column]))
             else:
-                param, param_cov = curve_fit(fit, x, y, xtol=0.1)
+                fit_ = fit
+            if bounds is not None:
+                param, param_cov = curve_fit(fit_, x, y, bounds=bounds_, xtol=0.1, maxfev=400)
+            else:
+                param, param_cov = curve_fit(fit_, x, y, xtol=0.1)
         except RuntimeError:
             continue
         except ValueError:
             continue
-        residuals = y - fit(np.array(x), param[0], param[1], param[2])
+        residuals = y - fit_(np.array(x), param[0], param[1], param[2])
         ss_res = np.sum(residuals ** 2)
         ss_tot = np.sum((y - np.mean(y)) ** 2)
         r_squared = 1 - (ss_res / ss_tot)
         if r_squared < min_r_squared:
+            continue
+        if param[1] <= bounds[0][1] or param[1] >= bounds[1][1]:
             continue
         fit_map[row, column] = param[1]
         r_squares[row, column] = r_squared

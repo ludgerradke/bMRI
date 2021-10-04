@@ -4,7 +4,7 @@ from multiprocessing import Pool
 
 
 def cest_correction(cest_array, x_calcentires, x, x_itp, mask, offset_map, interpolation, cest_range,
-                    multiprocessing=True):
+                    multiprocessing=False):
     """
 
     Args:
@@ -32,7 +32,10 @@ def cest_correction(cest_array, x_calcentires, x, x_itp, mask, offset_map, inter
         for i, j, k in arguments:
             values = cest_array[:, i, j, k]
             offset = offset_map[i, j, k]
-            CestCurveS[i, j, k, :] = calc_pixel(cest_range, values, offset, x_itp, x, interpolation)
+            try:
+                CestCurveS[i, j, k, :] = calc_pixel(cest_range, values, offset, x_itp, x, interpolation)
+            except:
+                print(offset)
 
     return CestCurveS, x_calcentires
 

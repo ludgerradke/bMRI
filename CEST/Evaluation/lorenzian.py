@@ -38,8 +38,9 @@ def calc_lorenzian_pixel(values, x_calcentires, MT_f, NOE1_f, NOE2_f, OH_f, NH_f
     fit = lorenz_like_matlab(wassr_offset=0, MT_f=MT_f, NOE1_f=NOE1_f, NOE2_f=NOE2_f, OH_f=OH_f, NH_f=NH_f)
     try:
         param, param_cov = curve_fit(fit, x_calcentires, values, bounds=([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                                                                     [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-                                                                      10]))
+                                                                         [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+                                                                          10,
+                                                                          10]))
     except RuntimeError:
         param = None
 
@@ -49,14 +50,8 @@ def calc_lorenzian_pixel(values, x_calcentires, MT_f, NOE1_f, NOE2_f, OH_f, NH_f
 def lorenz_like_matlab(wassr_offset, MT_f: float = - 2.43, NOE1_f: float = - 1, NOE2_f: float = - 2.6,
                        OH_f: float = + 1.4, NH_f: float = + 3.2):
     # X_f = frequenz of X
-    # X_a = amplitude of X
-    # X_w = wide of X
-    def lorenz(x, a, ak, b, OH_a, OH_w, NH_a, NH_w, NOE1_a, NOE1_w, NOE2_a, NOE2_w, MT_a, MT_w):
-        return (a + ak) - (a * ((b ** 2) / 4) / (((b ** 2) / 4) + (x - wassr_offset) ** 2)) - (
-                NH_a * ((NH_w ** 2) / 4) / (((NH_w ** 2) / 4) + (x - (wassr_offset + NH_f)) ** 2)) - (
-                       NOE1_a * ((NOE1_w ** 2) / 4) / (((NOE1_w ** 2) / 4) + (x - (wassr_offset + NOE1_f)) ** 2)) - (
-                       NOE2_a * ((NOE2_w ** 2) / 4) / (((NOE2_w ** 2) / 4) + (x - (wassr_offset + NOE2_f)) ** 2)) - (
-                       OH_a * ((OH_w ** 2) / 4) / (((OH_w ** 2) / 4) + (x - (wassr_offset + OH_f)) ** 2)) - (
-                       MT_a * ((MT_w ** 2) / 4) / (((MT_w ** 2) / 4) + (x - (wassr_offset + MT_f)) ** 2))
+    #ret = (a + ak) - (a * ((b ** 2) / 4) / (((b ** 2) / 4) + (x - wassr_offset) ** 2))
+    pass
 
-    return lorenz
+def one_lorenz(x, amplitude, width, wassr_offset, frequenz):
+    return amplitude * ((width ** 2) / 4) / (((width ** 2) / 4) + (x - (wassr_offset + frequenz)) ** 2)
