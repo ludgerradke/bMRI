@@ -3,7 +3,8 @@ import numpy as np
 from scipy.optimize import curve_fit
 from abc import ABC, abstractmethod
 import csv, os
-from multiprocessing import Pool
+import glob
+from multiprocessing import Pool, cpu_count
 
 
 class AbstractFitting(ABC):
@@ -41,7 +42,7 @@ class AbstractFitting(ABC):
     def load(self):
         pass
 
-    def load_mask(self):
+    def load_mask(self, counts = None):
         """
         Automatic import of the mask, it is assumed that the mask is in the same path as the commit path
             (see init function: folder). The file must be named as mask.nii.gz!
@@ -51,7 +52,20 @@ class AbstractFitting(ABC):
         Returns:
             None
         """
-        mask, affine, header = load_nii(self.folder + r'\mask.nii.gz')
+        nii_files = glob.glob(self.folder + '/mask.nii.gz')
+
+        if len(nii_files) == 1:
+            mask, affine, header = load_nii(nii_files[0])
+        else:
+            nii_files = glob.glob(self.folder + '/*.nii.gz')
+            if len(nii_files) == 1:
+                if 'map.nii.gz' in nii_files[0]:
+                    nii_files = nii_files[1:]
+        mask, affine, header = load_nii(nii_files[0])
+        if counts is not None:
+            for i in range(100):
+                if i not in counts:
+                    mask[mask == i] = 0
         self.set_mask(mask, affine, header)
 
     def set_mask(self, mask, affine, header):
@@ -109,7 +123,7 @@ class AbstractFitting(ABC):
         r_squares = np.zeros(mask.shape)
 
         if multiprocessing:
-            with Pool() as pool:
+            with Pool(cpu_count() - 2) as pool:
                 idxs, map, r_square = zip(*pool.map(fit_slice_process,
                                                     [(fit_map[:, :, i], r_squares[:, :, i], self.array[:, :, :, i],
                                                       mask[:, :, i],
@@ -190,8 +204,11 @@ def fit_slice_process(data):
 
 
 def fit_slice(d_slice, mask, x, fit, bounds, config_fit = None, min_r_squared=0):
-    bounds_ = ([bounds[0][0], 0.9 * bounds[0][1], bounds[0][2]],
+    if bounds is not None:
+        bounds_ = ([bounds[0][0], 0.9 * bounds[0][1], bounds[0][2]],
                      [bounds[1][0], 1.1 * bounds[1][1], bounds[1][2]])
+    else:
+        bounds_ = None
     """
     Fits one slice
 
@@ -240,8 +257,9 @@ def fit_slice(d_slice, mask, x, fit, bounds, config_fit = None, min_r_squared=0)
         r_squared = 1 - (ss_res / ss_tot)
         if r_squared < min_r_squared:
             continue
-        if param[1] <= bounds[0][1] or param[1] >= bounds[1][1]:
-            continue
+        if bounds is not None:
+            if param[1] <= bounds[0][1] or param[1] >= bounds[1][1]:
+                continue
         fit_map[row, column] = param[1]
         r_squares[row, column] = r_squared
     return fit_map, r_squares

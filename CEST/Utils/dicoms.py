@@ -40,18 +40,7 @@ def cest_gaussian_filter(array, sigma, mode):
     return array
 
 
-def get_ppms(offset, dyn, directory):
-    dcm_files = get_dcm_list(directory)
-    dcm_files = split_dcm_List(dcm_files)
-    step_size = (offset * 2) / (dyn - 1)
-    ppm = np.arange(-offset, offset, step_size).transpose()
-    ppm = np.append(ppm, offset)
-    if int(pydicom.dcmread(dcm_files[0][0]).AcquisitionNumber) == 1:
-        dcm_files = dcm_files[1:]
-        ppm_list = [ppm[int(pydicom.dcmread(f[0]).AcquisitionNumber)-1]for f in dcm_files]
-        return ppm_list
-    ppm_list = [ppm[int(pydicom.dcmread(f[0]).AcquisitionNumber) - 1] for f in dcm_files]
-    return ppm_list[1:]
+
 
 if __name__ == '__main__':
     offset = 6
