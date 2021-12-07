@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 import csv, os
 import glob
 from multiprocessing import Pool, cpu_count
+import scipy.io as sio
 
 
 class AbstractFitting(ABC):
@@ -37,6 +38,7 @@ class AbstractFitting(ABC):
         self.fit_function = fit_function
         self.sort = False
         self.config_fit = config_fit
+        self.num_cls = 0
 
     @abstractmethod
     def load(self):
@@ -85,6 +87,7 @@ class AbstractFitting(ABC):
             'affine': affine,
             'header': header
         }
+        self.num_cls = mask.max()
 
     def get_map(self):
         return self.fit_map
@@ -153,15 +156,18 @@ class AbstractFitting(ABC):
             map_dyn_{03d}.format(i): Overlaid images saved as .png
         """
         fit_map = self.fit_map if fit_map is None else fit_map
+        mask = self.mask['mask']
         clim = np.nanmax(fit_map)
         for i in range(fit_map.shape[-1]):
             file = self.folder + r'\map_dyn_{:03d}.png'.format(i)
+            file_map = self.folder + r'\mask_dyn_{:03d}.png'.format(i)
             try:
                 os.remove(file)
             except FileNotFoundError:
                 pass
             if np.nanmax(fit_map[:, :, i]) > 0:
-                overlay_dicom_map(self.array[0, :, :, i], fit_map[:, :, i], [0, clim], file)
+                overlay_dicom_map(self.array[-1, :, :, i], fit_map[:, :, i], [0, clim], file)
+                overlay_dicom_map(self.array[-1, :, :, i], mask[:, :, i], [0, self.num_cls], file_map)
 
     def save_results(self):
         """
@@ -174,6 +180,7 @@ class AbstractFitting(ABC):
                 number of pixels is calculated.
         """
         save_nii(self.fit_map, self.mask['affine'], self.mask['header'], self.folder + '/Map.nii.gz')
+        save_as_mat(self.folder + '\Results.mat', mask=self.mask['mask'], map=self.fit_map)
         results = {}
         for i in range(1, int(self.mask['mask'].max()) + 1):
             m = self.mask['mask'].copy()
@@ -182,12 +189,15 @@ class AbstractFitting(ABC):
             fit_map = np.multiply(self.fit_map, m)
             fit_map = np.where(fit_map != 0.0, fit_map, np.nan)
 
+            k = fit_map.copy()
+            k[k != np.nan] = 1
             r_squares = np.multiply(self.r_squares, m)
             r_squares = np.where(r_squares != 0, r_squares, np.nan)
 
             results[str(i)] = ['%.2f' % np.nanmean(fit_map), '%.2f' % np.nanstd(fit_map),
                                '%.2f' % np.nanmin(fit_map), '%.2f' % np.nanmax(fit_map),
-                               '%.2f' % np.sum(m), '%.2f' % np.nanmean(r_squares)]
+                               '%.2f' % np.sum(m) + '/' + '%.2f' % np.sum(k),
+                               '%.2f' % np.nanmean(r_squares)]
         with open(self.folder + '_results.csv', mode='w', newline='') as csv_file:
             writer = csv.writer(csv_file, delimiter=';')
             writer.writerow(['mask_index', 'mean', 'std', 'min', 'max', 'Pixels', 'Mean R^2'])
@@ -196,10 +206,12 @@ class AbstractFitting(ABC):
                 writer.writerow([key] + value)
         return results
 
+def save_as_mat(file, mask, map):
+    sio.savemat(file, {'mask': mask, 'map': map})
 
 def fit_slice_process(data):
     data = list(data)
-    data[0], data[1] = fit_slice(data[2], data[3], data[4], data[5], data[6], config_fit=data[8], min_r_squared=0.1)
+    data[0], data[1] = fit_slice(data[2], data[3], data[4], data[5], data[6], config_fit=data[8], min_r_squared=0.75)
     return data[7], data[0], data[1]
 
 
@@ -244,7 +256,7 @@ def fit_slice(d_slice, mask, x, fit, bounds, config_fit = None, min_r_squared=0)
             else:
                 fit_ = fit
             if bounds is not None:
-                param, param_cov = curve_fit(fit_, x, y, bounds=bounds_, xtol=0.1, maxfev=400)
+                param, param_cov = curve_fit(fit_, x, y, bounds=bounds_, xtol=0.25, maxfev=400)
             else:
                 param, param_cov = curve_fit(fit_, x, y, xtol=0.1)
         except RuntimeError:
