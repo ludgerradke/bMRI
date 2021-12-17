@@ -2,10 +2,10 @@ import pydicom
 from glob import glob
 import numpy as np
 import nibabel as nib
-
+import os
 
 def get_dcm_list(folder: str):
-    dcm_list = sorted(glob(folder + '*.dcm'))
+    dcm_list = sorted(glob(folder + os.sep + '*.dcm'))
     if len(dcm_list) == 0:
         return sorted(glob(folder + '\*'))
     return dcm_list

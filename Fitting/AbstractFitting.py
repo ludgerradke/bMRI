@@ -158,6 +158,9 @@ class AbstractFitting(ABC):
         fit_map = self.fit_map if fit_map is None else fit_map
         mask = self.mask['mask']
         clim = np.nanmax(fit_map)
+        # deleted all old *.pngs
+        for file in glob.glob(self.folder + os.sep + '*.png'):
+            os.remove(file)
         for i in range(fit_map.shape[-1]):
             file = self.folder + r'\map_dyn_{:03d}.png'.format(i)
             file_map = self.folder + r'\mask_dyn_{:03d}.png'.format(i)
@@ -167,7 +170,7 @@ class AbstractFitting(ABC):
                 pass
             if np.nanmax(fit_map[:, :, i]) > 0:
                 overlay_dicom_map(self.array[-1, :, :, i], fit_map[:, :, i], [0, clim], file)
-                overlay_dicom_map(self.array[-1, :, :, i], mask[:, :, i], [0, self.num_cls], file_map)
+                overlay_dicom_map(self.array[-1, :, :, i], np.copy(mask[:, :, i]), [0, self.num_cls], file_map)
 
     def save_results(self):
         """
@@ -206,8 +209,10 @@ class AbstractFitting(ABC):
                 writer.writerow([key] + value)
         return results
 
+
 def save_as_mat(file, mask, map):
     sio.savemat(file, {'mask': mask, 'map': map})
+
 
 def fit_slice_process(data):
     data = list(data)
@@ -217,8 +222,8 @@ def fit_slice_process(data):
 
 def fit_slice(d_slice, mask, x, fit, bounds, config_fit = None, min_r_squared=0):
     if bounds is not None:
-        bounds_ = ([bounds[0][0], 0.9 * bounds[0][1], bounds[0][2]],
-                     [bounds[1][0], 1.1 * bounds[1][1], bounds[1][2]])
+        bounds_ = ([bounds[0][0], bounds[0][1], bounds[0][2]],
+                     [bounds[1][0], bounds[1][1], bounds[1][2]])
     else:
         bounds_ = None
     """
@@ -256,7 +261,7 @@ def fit_slice(d_slice, mask, x, fit, bounds, config_fit = None, min_r_squared=0)
             else:
                 fit_ = fit
             if bounds is not None:
-                param, param_cov = curve_fit(fit_, x, y, bounds=bounds_, xtol=0.25, maxfev=400)
+                param, param_cov = curve_fit(fit_, x, y, bounds=bounds_, xtol=0.01, maxfev=1200)
             else:
                 param, param_cov = curve_fit(fit_, x, y, xtol=0.1)
         except RuntimeError:

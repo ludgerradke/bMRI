@@ -46,11 +46,11 @@ class T2_T2star(AbstractFitting):
         load dicom images and Echo times
         """
         if self.dim == 2:
-            dcm_files = get_dcm_list(self.folder + '\\')
+            dcm_files = get_dcm_list(self.folder)
             self.get_tes(dcm_files)
             dcm_files = [[dcm] for dcm in dcm_files]
         if self.dim == 3:
-            dcm_files = get_dcm_list(self.folder + '\\*.dcm')
+            dcm_files = get_dcm_list(self.folder)
             if len(dcm_files) == 0:
                 echos = glob(self.folder + r'\\*\\')
                 dcm_files = [get_dcm_list(echo) for echo in echos]
