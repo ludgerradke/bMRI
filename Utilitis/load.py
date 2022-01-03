@@ -3,11 +3,13 @@ from glob import glob
 import numpy as np
 import nibabel as nib
 import os
+from PIL import Image, ImageDraw
+
 
 def get_dcm_list(folder: str):
     dcm_list = sorted(glob(folder + os.sep + '*.dcm'))
-    if len(dcm_list) == 0:
-        return sorted(glob(folder + '\*'))
+    #if len(dcm_list) == 0:
+    #    return sorted(glob(folder + '\*'))
     return dcm_list
 
 
@@ -70,3 +72,39 @@ def get_dcm_array(data: list):
 def load_nii(file):
     nimg = nib.load(file)
     return nimg.get_fdata()[:, :, ::-1], nimg.affine, nimg.header
+
+
+def transform_gui_segmentation_to_nii(path):
+    DicomList = sorted(glob(path + '/*.dcm'))
+
+    shape = pydicom.dcmread(DicomList[0]).pixel_array.astype(np.uint8).shape[0]
+    OverAllMaske = np.zeros([len(DicomList), shape, shape])
+    for k in range(len(DicomList)):
+        loadFileNameMain = DicomList[k]
+        loadFileName = loadFileNameMain[:-4] + '_poly.txt'
+        try:
+            loadFile = open(loadFileName, 'r')
+        except FileNotFoundError:
+            continue
+        File = np.genfromtxt(loadFile, delimiter=',')
+        File = np.nan_to_num(File)
+        length = len(File)
+        for i in range(length):
+            PolyList = []
+            for j in range(100):
+                try:
+                    x = File[i][j * 2]
+                    y = File[i][j * 2 + 1]
+                except IndexError:
+                    x = File[j * 2]
+                    y = File[j * 2 + 1]
+                if x == 0 or x == 2000:
+                    break
+                PolyList.append((x, y))
+            if len(PolyList) > 2:
+                img = Image.new('L', (int(shape), int(shape)), 0)
+                ImageDraw.Draw(img).polygon(PolyList, outline=1, fill=1)
+                array = (i + 1) * np.array(img)
+                array[OverAllMaske[k, :, :] != 0] = 0
+                OverAllMaske[k, :, :] += array
+    return OverAllMaske

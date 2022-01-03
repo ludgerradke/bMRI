@@ -6,6 +6,7 @@ import csv, os
 import glob
 from multiprocessing import Pool, cpu_count
 import scipy.io as sio
+import pandas as pd
 
 
 class AbstractFitting(ABC):
@@ -190,16 +191,16 @@ class AbstractFitting(ABC):
             m = np.where(m == i, 1, 0)
 
             fit_map = np.multiply(self.fit_map, m)
+            k = fit_map.copy()
+            k[k > 0] = 1
             fit_map = np.where(fit_map != 0.0, fit_map, np.nan)
 
-            k = fit_map.copy()
-            k[k != np.nan] = 1
             r_squares = np.multiply(self.r_squares, m)
             r_squares = np.where(r_squares != 0, r_squares, np.nan)
 
             results[str(i)] = ['%.2f' % np.nanmean(fit_map), '%.2f' % np.nanstd(fit_map),
                                '%.2f' % np.nanmin(fit_map), '%.2f' % np.nanmax(fit_map),
-                               '%.2f' % np.sum(m) + '/' + '%.2f' % np.sum(k),
+                               '%.2f' % np.nansum(k) + '/' + '%.2f' % np.sum(m),
                                '%.2f' % np.nanmean(r_squares)]
         with open(self.folder + '_results.csv', mode='w', newline='') as csv_file:
             writer = csv.writer(csv_file, delimiter=';')
@@ -209,6 +210,9 @@ class AbstractFitting(ABC):
                 writer.writerow([key] + value)
         return results
 
+    def load_result(self):
+        df = pd.read_csv(self.folder + '_results.csv', delimiter=';')
+        return df.to_dict()
 
 def save_as_mat(file, mask, map):
     sio.savemat(file, {'mask': mask, 'map': map})
